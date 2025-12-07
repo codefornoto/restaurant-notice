@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <!-- メタデータ、リンク、スクリプト -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外国人向け飲食店利用案内作成ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.js"></script>
+    
+    <!-- スタイル -->
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        
+        #preview-sheet {
+            background-color: #f4f3ec;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            width: 100%; /* 通常時は親要素に合わせる */
+            aspect-ratio: 210 / 297;
+            position: relative;
+            /* PDF生成時のレイアウト崩れを防ぐため、ボックスサイズ計算を明確にする */
+            box-sizing: border-box;
+        }
+
+        #preview-header { 
+            padding: 1.25rem 1.5rem; 
+            border-bottom: 1px solid #e5e7eb; 
+            text-align: center; 
+            flex-shrink: 0; 
+            background-color: #c5b37f; 
+        }
+        #preview-header h2 { 
+            font-size: 1.3rem; 
+            font-weight: 700; 
+            color: #ffffff; 
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+            line-height: 1.2;
+        }
+        
+        #card-grid {
+            flex-grow: 1;
+            padding: 0.75rem; 
+            display: grid;
+            gap: 0.75rem; 
+            overflow: hidden;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: min-content; 
+        }
+
+        .welcome-message-card {
+            grid-column: span 2 / span 2;
+            grid-row: span 1 / span 1;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+        .welcome-message-card h3 { 
+            font-size: 0.9rem; 
+            font-weight: 700; 
+            margin-bottom: 0.25rem; 
+        }
+        .welcome-message-card p { 
+            font-size: 0.8rem; 
+            line-height: 1.35;
+        }
+        
+        .payment-options-card {
+            grid-column: span 2 / span 2;
+            grid-row: span 1 / span 1;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #preview-footer { 
+            padding: 0.75rem 1.5rem; 
+            background-color: #c5b37f; 
+            color: #ffffff; 
+            font-size: 0.7rem; 
+            flex-shrink: 0; 
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center; 
+        }
+        #preview-footer .footer-text {
+            text-align: left;
+            line-height: 1.3;
+        }
+        
+        .footer-logo-container {
+            height: 5rem; 
+            margin-left: 1rem;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .footer-logo-svg {
+            height: 100%;
+            width: auto;
+            aspect-ratio: 106.58 / 88.24;
+            overflow: visible;
+        }
+        
+        .card-item { 
+            border: 1px solid #e5e7eb; 
+            border-radius: 0.5rem; 
+            padding: 0.75rem; 
+            position: relative; 
+            background-color: rgba(255,255,255,0.95);
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .card-body {
+            position: relative;
+            z-index: 10; 
+            flex-grow: 1;
+            font-size: 0.8rem; 
+            line-height: 1.35;
+        }
+        
+        .card-pictogram {
+            position: absolute; 
+            z-index: 0; 
+            width: 40%; 
+            height: 80%; 
+            bottom: 10%; 
+            right: 5%; 
+            opacity: 0.2; 
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card-pictogram > img, .card-pictogram > svg {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain; 
+        }
+        
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 9999; display: flex; justify-content: center; align-items: center; color: white; flex-direction: column; }
+        #loader.hidden { display: none; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; margin-bottom: 1rem; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .pagination-button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .time-input { width: 4rem; text-align: center; border-radius: 0.25rem; border: 1px solid #d1d5db; padding: 0.25rem; margin: 0 0.25rem; }
+        .time-input:disabled { background-color: #f3f4f6; cursor: not-allowed; }
+        .radio-label { margin-left: 0.5rem; font-weight: normal; }
+        .radio-group { display: flex; gap: 1rem; }
+        
+        /* ブランド選択用のスタイル */
+        .brand-checkbox-container {
+            margin-top: 0.5rem;
+            margin-left: 0.5rem;
+            display: none; /* 初期状態は非表示 */
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .brand-checkbox-container.visible {
+            display: flex;
+        }
+        .brand-label {
+            font-size: 0.85rem;
+            color: #4b5563;
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- HTMLボディ -->
+    <div id="loader" class="hidden">
+        <div class="spinner"></div>
+        <p>PDFを生成中です...</p>
+    </div>
+
+    <div id="survey-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl h-full max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b">
+                <h3 class="text-lg font-medium text-gray-900">店舗情報の入力をお願いします</h3>
+            </div>
+            <div class="flex-grow p-1 relative">
+                <iframe id="google-form-iframe" src="https://forms.gle/NAPsSjZKjBF45Zc39" class="w-full h-full border-0">読み込んでいます...</iframe>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-between items-center">
+                 <p class="text-sm text-gray-600">アンケートの回答後、このウィンドウを閉じてください。</p>
+                 <button id="skip-survey-button" class="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300">スキップして閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="mb-8 flex justify-between items-center flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">外国人向け飲食店利用案内作成ツール</h1>
+                <p class="text-gray-600 mt-2">外国人のお客様向けに、各店舗のルール・マナーを多言語で啓発できるご案内を簡単作成・PDF出力</p>
+            </div>
+            <div>
+                <a href="https://forms.gle/TPwCgFaXNDMR729B9" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                    <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" /></svg>
+                    ツールのフィードバックをお寄せください
+                </a>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <aside id="control-panel" class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">表示言語 (複数選択可)</label>
+                    <div id="language-selection" class="space-y-2">
+                        <div><input id="lang-en" value="en" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 lang-checkbox"><label for="lang-en" class="ml-2 text-sm text-gray-800">English (英語)</label></div>
+                        <div><input id="lang-zh" value="zh" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 lang-checkbox"><label for="lang-zh" class="ml-2 text-sm text-gray-800">中文 (中国語／繁体字)</label></div>
+                    </div>
+                </div>
+                <div id="checklist-sections"></div>
+            </aside>
+
+            <div class="lg:col-span-2">
+                 <div id="preview-sheet-wrapper">
+                    <div id="preview-sheet">
+                        <header id="preview-header"><h2>お客様へのお知らせ / Information for our Guests</h2></header>
+                        <main id="card-grid"></main>
+                        
+                        <footer id="preview-footer">
+                            <div class="footer-text">
+                                <p>※掲載内容は変更になる場合がございます。ご不明な点はスタッフまでお尋ねください。<br>
+                                Information may be subject to change. If you have any questions, please kindly ask our staff.</p>
+                                <p class="mt-2 pt-2 border-t border-white/30">
+                                    この案内は、石川県が提供するサービスを使って作成されました。<br>
+                                    This information was created using services provided by Ishikawa Prefecture.
+                                </p>
+                            </div>
+                            
+                            <!-- ロゴ表示エリア (SVG) -->
+                            <div class="footer-logo-container">
+                                <svg class="footer-logo-svg" 
+                                     xmlns="http://www.w3.org/2000/svg" 
+                                     xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     viewBox="0 0 106.58 88.24"
+                                     preserveAspectRatio="xMidYMid meet"
+                                     style="aspect-ratio: 106.58 / 88.24;"
+                                >
+                                <defs><style>.cls-1,.cls-3{fill:none;}.cls-2,.cls-6{fill:#c5b37f;}.cls-3{stroke:#25283b;stroke-width:3px;}.cls-3,.cls-6{stroke-miterlimit:10;}.cls-4{clip-path:url(#clip-path);}.cls-5{fill:#25283b;}.cls-6{stroke:#c5b37f;}</style><clipPath id="clip-path" transform="translate(20.2)"><circle class="cls-1" cx="41.5" cy="41.5" r="40"/></clipPath></defs><g id="レイヤー_2" data-name="レイヤー 2"><g id="レイヤー_1-2" data-name="レイヤー 1"><circle class="cls-2" cx="61.7" cy="41.5" r="40"/><circle class="cls-3" cx="61.7" cy="41.5" r="40"/><g class="cls-4"><rect class="cls-5" x="51.81" y="-2.29" width="0.95" height="90.64" transform="matrix(0.85, -0.53, 0.53, 0.85, 5.36, 34.12)"/><rect class="cls-5" x="46.47" y="0.28" width="0.95" height="85.49" transform="translate(6.14 24.75) rotate(-25.83)"/><rect class="cls-5" x="41.12" y="2.31" width="0.95" height="81.42" transform="translate(8.42 15.95) rotate(-19.07)"/><rect class="cls-5" x="35.77" y="3.73" width="0.95" height="78.59" transform="translate(12.21 8.26) rotate(-11.72)"/><rect class="cls-5" x="30.42" y="4.46" width="0.95" height="77.14" transform="translate(17.3 2.23) rotate(-3.96)"/><rect class="cls-5" x="-13.02" y="42.55" width="77.14" height="0.95" transform="translate(1.05 65.52) rotate(-86.02)"/><rect class="cls-5" x="-19.1" y="42.55" width="78.59" height="0.95" transform="translate(-5.84 54.06) rotate(-78.28)"/><rect class="cls-5" x="-25.86" y="42.55" width="81.42" height="0.95" transform="translate(-10.47 42.98) rotate(-70.91)"/><rect class="cls-5" x="-33.25" y="42.55" width="85.49" height="0.95" transform="translate(-13.17 32.83) rotate(-64.17)"/><rect class="cls-5" x="-41.17" y="42.55" width="90.64" height="0.95" transform="translate(-14.38 23.82) rotate(-58.11)"/></g><g class="cls-4"><path class="cls-5" d="M85.65,86.62C85.49,86,81.49,72,62,53.4V48.83h3.21a.71.71,0,0,0,.71-.72V43.89a.71.71,0,0,0-.71-.71H62V31.68h10.1a.72.72,0,0,0,.48-1.25c-.32-.29-7.75-6.75-16.74-8.35V17.44a.72.72,0,0,0-.72-.72H48.88a.72.72,0,0,0-.71.72v4.64c-9.06,1.42-16.42,8.06-16.74,8.35a.71.71,0,0,0,.47,1.25H42v11.5H38.8a.71.71,0,0,0-.72.71v4.22a.72.72,0,0,0,.72.72H42V53.4C22.55,72,18.55,86,18.39,86.62a.71.71,0,0,0,.12.62.73.73,0,0,0,.57.29H31.9a.73.73,0,0,0,.72-.65A44.85,44.85,0,0,1,52,57.12a44.89,44.89,0,0,1,19.4,29.76.72.72,0,0,0,.71.65H85a.73.73,0,0,0,.58-.29A.71.71,0,0,0,85.65,86.62Z" transform="translate(20.2)"/><path class="cls-5" d="M85,88.24H72.13A1.44,1.44,0,0,1,70.71,87,44.38,44.38,0,0,0,52,58a44.37,44.37,0,0,0-18.7,29,1.42,1.42,0,0,1-1.42,1.29H19.08A1.4,1.4,0,0,1,18,87.67a1.45,1.45,0,0,1-.25-1.24c.17-.59,4.19-14.73,23.6-33.34V49.54H38.8a1.43,1.43,0,0,1-1.43-1.43V43.89a1.43,1.43,0,0,1,1.43-1.42h2.5V32.39H31.9a1.43,1.43,0,0,1-1.33-.92A1.44,1.44,0,0,1,31,29.89c1.32-1.17,8.1-6.88,16.5-8.41v-4A1.43,1.43,0,0,1,48.88,16h6.27a1.43,1.43,0,0,1,1.43,1.43v4c8.93,1.8,16.18,8.13,16.5,8.4a1.43,1.43,0,0,1-1,2.5H62.74V42.47h2.5a1.43,1.43,0,0,1,1.42,1.42v4.22a1.43,1.43,0,0,1-1.42,1.43h-2.5v3.55C82.15,71.7,86.17,85.84,86.33,86.43A1.43,1.43,0,0,1,85,88.24ZM52,56.41a.72.72,0,0,1,.4.12A45.83,45.83,0,0,1,72.13,86.81H85c-.16-.58-4.1-14.46-23.42-32.9a.7.7,0,0,1-.22-.51V48.83a.71.71,0,0,1,.71-.71h3.21V43.89H62a.71.71,0,0,1-.71-.71V31.68A.71.71,0,0,1,62,31h10.1c-.3-.28-7.58-6.62-16.39-8.19a.72.72,0,0,1-.58-.7V17.44H48.88v4.65a.72.72,0,0,1-.6.7c-8.28,1.3-15.08,7-16.36,8.16L42,31a.71.71,0,0,1,.71.71v11.5a.71.71,0,0,1-.71.71H38.8v4.22H42a.71.71,0,0,1,.71.71V53.4a.7.7,0,0,1-.22.51C23.18,72.35,19.23,86.23,19.07,86.81H31.9A45.77,45.77,0,0,1,51.62,56.53.72.72,0,0,1,52,56.41Z" transform="translate(20.2)"/><rect class="cls-6" x="67.6" y="33.29" width="9.23" height="6.76" rx="1.91"/></g></g></g></svg>
+                            </div>
+                        </footer>
+                    </div>
+                    <div id="placeholder" class="text-center text-gray-500 py-16 bg-white rounded-lg shadow-md">選択した項目がここにプレビューされます。</div>
+                 </div>
+                <div id="pagination-controls" class="hidden mt-4 flex justify-center items-center">
+                    <button id="prev-page" class="pagination-button px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">前のページへ</button>
+                    <span id="page-info" class="mx-4 text-sm text-gray-600"></span>
+                    <button id="next-page" class="pagination-button px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">次のページへ</button>
+                </div>
+                <div class="mt-8 text-right">
+                    <button id="pdf-download-button" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"><svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>PDFをダウンロード</button>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center text-sm text-gray-500 mt-8 pb-4">
+            お問い合わせ：石川県文化観光スポーツ部国際観光課 TEL:076-225-1124
+        </footer>
+    </div>
+
+<script>
+const MAX_CELLS_PAGE1 = 6; 
+const MAX_CELLS_NORMAL = 10; 
+
+let currentPage = 1;
+
+// --- データ定義 ---
+const welcomeMessageData = {
+    en: {
+        title: 'Information for Our Guests before the Meal',
+        description: 'Thank you very much for coming today. To ensure you have a pleasant meal, we ask that you please read and understand the following beforehand. We appreciate your understanding, and hope you enjoy your meal.'
+    },
+    zh: {
+        title: '在用餐之前 － 注意事項',
+        description: '感謝您蒞臨本店。為了讓您有良好的用餐體驗，請務必詳讀下列事項。感謝您的理解與協助。'
+    },
+    jp: {
+        title: 'お食事の前に － お客様へのお願い',
+        description: 'ご来店いただきありがとうございます。楽しくお食事を楽しんでいただくために、以下の事項について予めお客様にご了承いただきますよう、お願いします。ご理解とご協力の程、よろしくお願いいたします。'
+    }
+};
+
+const phrasesData = {
+    payment: {
+        title: '会計関連',
+        items: {
+            payment_options: {
+                jp_label: '会計は以下に対応しています。詳細はスタッフまでお尋ねください。',
+                svgPath: './1.svg', 
+                hasCustomUI: true,
+                content: {
+                    en: { title: 'Payment Methods', description: 'We accept the following payment method(s). For details, please ask a member of our staff.'},
+                    zh: { title: '結帳方式', description: '提供以下結帳方式。詳情請詢問店內人員。'}
+                },
+                options_text: {
+                    en: { yes: 'Yes', no: 'No', cash: 'Cash', card: 'Credit Cards', ic: 'Transit IC Cards' },
+                    zh: { yes: '可', no: '不可', cash: '現金', card: '信用卡', ic: '交通IC卡' },
+                    jp: { yes: '可', no: '不可', cash: '現金', card: 'クレジットカード', ic: '交通系IC' }
+                }
+            },
+            no_split_bill_new: {
+                jp_label: '会計はグループ単位でまとめていただきますよう、お願いします。',
+                svgPath: './3.svg', 
+                content: {
+                    en: { title: 'Single Payment', description: 'We ask that you please pay for the entire party together in a single payment.'},
+                    zh: { title: '統一結帳', description: '請以團體為單位結帳。'}
+                }
+            }
+        }
+    },
+    food: {
+        title: '食事・メニュー関連',
+        items: {
+            otoshi_charge: {
+                jp_label: 'お席料として"お通し"をお出しします。"お通し"は料理提供までの間を繋ぐ、日本の居酒屋文化で一般的な慣習です。',
+                svgPath: './2.svg', 
+                content: {
+                    en: { title: 'About "Otoshi" (Appetizer)', description: 'This restaurant serves o-toshi, a small appetizer included as part of the seating charge. This is a common custom at izakaya restaurants in Japan.'},
+                    zh: { title: '關於「開胃小菜」', description: '我們將提供「開胃小菜」作為座位費用。「開胃小菜」是讓您等待上菜時享用的料理，屬於日本居酒屋文化常見的習慣。'}
+                }
+            },
+            table_charge_only: {
+                jp_label: 'お席料（テーブルチャージ）を頂戴しております。',
+                svgPath: './4.svg', 
+                content: {
+                    en: { title: 'Seating Charge', description: 'We have a seating charge.'},
+                    zh: { title: '座位費用', description: '會收取座位費用。'}
+                }
+            },
+            market_price_new: {
+                jp_label: '一部商品は"時価"です。価格はお尋ねください。"時価"の商品は、鮮魚等の仕入れ値により価格が変動します。',
+                svgPath: './5.svg', 
+                content: {
+                    en: { title: 'About "Market Price"', description: 'Some of our menu items are “market price,” due to prices that can vary from day to day for items such as fresh seafood. Please ask for today’s price if you are interested.'},
+                    zh: { title: '關於「時價」', description: '部分商品採用「時價」計價。請向店內人員詢價。採用「時價」的商品，會隨著鮮魚等貨物的進貨成本而波動。'}
+                }
+            },
+            dietary_restrictions: {
+                jp_label: 'アレルギーや宗教・思想などによる食事制限につきましては、可能な範囲で対応しますので、事前にご相談ください。',
+                svgPath: './6.svg', 
+                content: {
+                    en: { title: 'Dietary Restrictions', description: 'Please let us know if you have any food allergies, or dietary restrictions (religious or otherwise), and we will try to accommodate them as much as we can.'},
+                    zh: { title: '飲食限制', description: '因過敏、宗教、理念等原因而有飲食限制的客人，我們會在能力範圍內為您提供服務，請事先告知相關需求。'}
+                }
+            },
+            no_take_away_new: {
+                jp_label: '食べ残しのお持ち帰りはご遠慮ください。',
+                svgPath: './7.svg', 
+                content: {
+                    en: { title: 'No Take-out for Leftovers', description: 'We do not offer take-out for leftover food.'},
+                    zh: { title: '請勿打包剩菜', description: '請勿将吃剩的食物打包带走。'}
+                }
+            },
+            paid_water: {
+                jp_label: 'お水は有料でのご提供となります。',
+                svgPath: './8.svg', 
+                content: {
+                    en: { title: 'Water', description: 'Water is available, but as a paid menu item.'},
+                    zh: { title: '飲用水', description: '飲用水需付費。'}
+                }
+            },
+            one_order_rule: {
+                jp_label: 'お一人様1オーダー以上をお願いします。',
+                svgPath: './9.svg', 
+                content: {
+                    en: { title: 'Minimum Order', description: 'We ask that you please order at least one menu item per person.'},
+                    zh: { title: '最低消費', description: '每位客人至少需點一份飲料或餐點。'}
+                }
+            }
+        }
+    },
+    manners: {
+        title: 'マナー・行動関連',
+        items: {
+            ask_for_photos_new: {
+                jp_label: '店内撮影はプライバシーや雰囲気保持のため、事前にスタッフへご確認ください。',
+                svgPath: './10.svg', 
+                content: {
+                    en: { title: 'Photography', description: 'To ensure a comfortable atmosphere and a shared sense of privacy, please ask the staff for permission before taking any photos while you are here.'},
+                    zh: { title: '關於攝影', description: '為確保客人隱私及店內氛圍，如需在店內攝影請事先和店內工作人員確認。'}
+                }
+            },
+            no_outside_food_new: {
+                jp_label: '飲食物の持ち込みはご遠慮いただいております。',
+                svgPath: './11.svg', 
+                content: {
+                    en: { title: 'No Outside Food or Drinks', description: 'No outside food or drinks are allowed.'},
+                    zh: { title: '禁止攜帶外食', description: '禁止攜帶外食外飲。'}
+                }
+            },
+            smoking_area_new: {
+                jp_label: '喫煙は所定の場所にてお願いします。',
+                svgPath: './12.svg', 
+                content: {
+                    en: { title: 'Smoking Area', description: 'Smoking is allowed only in designated locations.'},
+                    zh: { title: '吸菸區', description: '請在指定場所抽菸。'}
+                }
+            },
+            no_smoking_new: {
+                jp_label: '店内は全席禁煙となっております。',
+                svgPath: './13.svg', 
+                content: {
+                    en: { title: 'Non-Smoking', description: 'All seats are non-smoking.'},
+                    zh: { title: '全面禁菸', description: '店內全面禁菸。'}
+                }
+            },
+            seat_time_limit_fixed: {
+                hasInput: true,
+                jp_label: 'お席は<input type="number" id="seat_time_limit_fixed-input" class="time-input" value="2" min="0.5" step="0.5" disabled>時間制とさせていただいております。',
+                svgPath: './14.svg', 
+                content: {
+                    en: { title: 'Seating Time Limit', description: 'We ask that guests please stay no longer than {time} hours.'},
+                    zh: { title: '用餐時間', description: '用餐時間為{time}小時。'}
+                }
+            },
+            seat_time_limit_busy: {
+                hasInput: true,
+                jp_label: '混雑時は<input type="number" id="seat_time_limit_busy-input" class="time-input" value="2" min="0.5" step="0.5" disabled>時間制とさせていただく場合があります。',
+                svgPath: './15.svg', 
+                content: {
+                    en: { title: 'Seating Time Limit (Busy Hours)', description: 'When we are particularly busy, we ask that guests please stay no longer than {time} hours.'},
+                    zh: { title: '人數眾多時的用餐時間', description: '用餐人數眾多時将調整為{time}小時。'}
+                }
+            }
+        }
+    },
+    communication: {
+        title: 'コミュニケーション関連',
+        items: {
+            language_barrier_new: {
+                jp_label: 'スタッフによる言語対応が難しい場合があります。ご了承ください。',
+                svgPath: './16.svg', 
+                content: {
+                    en: { title: 'Language Support', description: 'Our staff may not be able to communicate in any language other than Japanese. We appreciate your understanding.'},
+                    zh: { title: '語言溝通', description: '工作人員可能無法順利與您溝通。敬請見諒。'}
+                }
+            },
+            service_delay_new: {
+                jp_label: '混雑時は、料理の提供やスタッフのご対応にお時間をいただく場合があります。',
+                svgPath: './17.svg', 
+                content: {
+                    en: { title: 'Service Delays', description: 'Please note that, when we are particularly busy, it may take longer than usual to prepare your food, or for staff members to assist you.'},
+                    zh: { title: '關於等待時間', description: '用餐人數眾多時，店員的服務及料理的提供可能需要稍加等候。'}
+                }
+            },
+            call_staff_new: {
+                jp_label: 'ご用の際は直接または呼び鈴（ベル等）でお呼びください。',
+                svgPath: './18.svg', 
+                content: {
+                    en: { title: 'Getting Staff\'s Attention', description: 'If you need anything, please let a staff member know directly, or use the bell at a table.'},
+                    zh: { title: '呼叫店員', description: '如需協助請按下呼叫鈴或直接招呼店員。'}
+                }
+            }
+        }
+    }
+};
+
+function createPictogramHtml(svgPath) {
+    if (!svgPath) {
+        return `
+        <div class="card-pictogram">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-full h-full">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+        </div>`;
+    }
+    return `
+    <div class="card-pictogram">
+        <img src="${svgPath}" alt="" class="w-full h-full" onerror="this.style.display='none'">
+    </div>`;
+}
+
+function createChecklist() {
+    const container = document.getElementById('checklist-sections');
+    container.innerHTML = Object.values(phrasesData).map(section => {
+        if (section.title === '会計関連') {
+            return `
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">${section.title}</h3>
+                    <div class="space-y-4">
+                        <div class="relative flex items-start">
+                            <div class="flex h-6 items-center"><input id="payment_options" name="payment_options" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 checkbox-item"></div>
+                            <div class="ml-3 text-sm leading-6"><label for="payment_options" class="font-medium text-gray-900">${section.items.payment_options.jp_label}</label></div>
+                        </div>
+                        <div class="pl-5 space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">－現金</label>
+                                <div class="flex space-x-4 mt-1 radio-group">
+                                    <input id="payment_cash_yes" name="payment_cash" value="yes" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 radio-item"><label for="payment_cash_yes" class="radio-label">可</label>
+                                    <input id="payment_cash_no" name="payment_cash" value="no" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 radio-item"><label for="payment_cash_no" class="radio-label">不可</label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">－クレジットカード</label>
+                                <div class="flex space-x-4 mt-1 radio-group">
+                                    <input id="payment_card_yes" name="payment_card" value="yes" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 radio-item"><label for="payment_card_yes" class="radio-label">可</label>
+                                    <input id="payment_card_no" name="payment_card" value="no" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 radio-item"><label for="payment_card_no" class="radio-label">不可</label>
+                                </div>
+                                <!-- 修正: ブランド選択チェックボックス追加 -->
+                                <div id="card_brands_container" class="brand-checkbox-container">
+                                    <div class="brand-label"><input type="checkbox" id="brand_visa" value="VISA" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 brand-item mr-1"> VISA</div>
+                                    <div class="brand-label"><input type="checkbox" id="brand_master" value="Mastercard" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 brand-item mr-1"> Mastercard</div>
+                                    <div class="brand-label"><input type="checkbox" id="brand_amex" value="American Express" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 brand-item mr-1"> American Express</div>
+                                    <div class="brand-label"><input type="checkbox" id="brand_unionpay" value="UnionPay" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 brand-item mr-1"> UnionPay（銀聯）</div>
+                                </div>
+                            </div>
+                             <div>
+                                <label class="block text-sm font-medium text-gray-700">－交通系IC</label>
+                                <div class="flex space-x-4 mt-1 radio-group">
+                                    <input id="payment_ic_yes" name="payment_ic" value="yes" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 radio-item"><label for="payment_ic_yes" class="radio-label">可</label>
+                                    <input id="payment_ic_no" name="payment_ic" value="no" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 radio-item"><label for="payment_ic_no" class="radio-label">不可</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative flex items-start">
+                            <div class="flex h-6 items-center"><input id="no_split_bill_new" name="no_split_bill_new" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 checkbox-item"></div>
+                            <div class="ml-3 text-sm leading-6"><label for="no_split_bill_new" class="font-medium text-gray-900">${section.items.no_split_bill_new.jp_label}</label></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        const itemsHtml = Object.keys(section.items).map(key => {
+            if (key === 'payment_options' || key === 'no_split_bill_new') return '';
+            const item = section.items[key];
+            return `
+                <div class="relative flex items-start">
+                    <div class="flex h-6 items-center"><input id="${key}" name="${key}" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 checkbox-item"></div>
+                    <div class="ml-3 text-sm leading-6"><label for="${key}" class="font-medium text-gray-900">${item.jp_label}</label></div>
+                </div>`;
+        }).join('');
+        return `
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">${section.title}</h3>
+                <div class="space-y-4">${itemsHtml}</div>
+            </div>`;
+    }).join('');
+    
+    const timeCheckbox1 = document.getElementById('seat_time_limit_fixed');
+    const timeInput1 = document.getElementById('seat_time_limit_fixed-input');
+    if(timeCheckbox1 && timeInput1) {
+        timeCheckbox1.addEventListener('change', (e) => { timeInput1.disabled = !e.target.checked; });
+    }
+    const timeCheckbox2 = document.getElementById('seat_time_limit_busy');
+    const timeInput2 = document.getElementById('seat_time_limit_busy-input');
+    if(timeCheckbox2 && timeInput2) {
+        timeCheckbox2.addEventListener('change', (e) => { timeInput2.disabled = !e.target.checked; });
+    }
+}
+
+function setupEventListeners() {
+    const inputs = document.querySelectorAll('.lang-checkbox, .checkbox-item, .radio-item');
+    inputs.forEach(el => {
+        el.addEventListener('change', () => {
+            currentPage = 1;
+            // 修正: クレジットカードのラジオボタン変更時にブランド表示制御
+            if(el.name === 'payment_card') {
+                const brandsContainer = document.getElementById('card_brands_container');
+                if (brandsContainer) {
+                    if (el.value === 'yes') {
+                        brandsContainer.classList.add('visible');
+                    } else {
+                        brandsContainer.classList.remove('visible');
+                    }
+                }
+            }
+            renderPreview();
+        });
+    });
+    
+    // 修正: ブランドチェックボックスのイベントリスナー追加
+    const brandInputs = document.querySelectorAll('.brand-item');
+    brandInputs.forEach(el => {
+        el.addEventListener('change', () => {
+            renderPreview();
+        });
+    });
+
+    const timeInputs = document.querySelectorAll('#seat_time_limit_fixed-input, #seat_time_limit_busy-input');
+    timeInputs.forEach(input => {
+        input.addEventListener('input', renderPreview);
+    });
+    document.getElementById('pdf-download-button').addEventListener('click', () => {
+        document.getElementById('survey-modal').classList.remove('hidden');
+        generatePDF();
+    });
+    document.getElementById('skip-survey-button').addEventListener('click', () => {
+        document.getElementById('survey-modal').classList.add('hidden');
+    });
+    document.getElementById('prev-page').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPreview(); } });
+    document.getElementById('next-page').addEventListener('click', () => {
+        const totalPages = getTotalPages();
+        if (currentPage < totalPages) { currentPage++; renderPreview(); }
+    });
+}
+
+function renderPaymentCard() {
+    const data = phrasesData.payment.items.payment_options;
+    const selectedLangs = getSelectedLangs();
+    
+    const cash_status = document.querySelector('input[name="payment_cash"]:checked').value;
+    const card_status = document.querySelector('input[name="payment_card"]:checked').value;
+    const ic_status = document.querySelector('input[name="payment_ic"]:checked').value;
+
+    // 修正: 選択されたブランドを取得
+    const selectedBrands = Array.from(document.querySelectorAll('.brand-item:checked')).map(cb => cb.value);
+    const brandsText = selectedBrands.length > 0 ? ` (${selectedBrands.join(', ')})` : '';
+
+    const displayLangs = ['jp', ...selectedLangs.filter(l => l !== 'jp')];
+
+    const cardBodyHtml = displayLangs.map(lang => {
+        const texts = data.options_text[lang];
+        if (!texts) return '';
+        
+        // 修正: カードステータス表示文言の生成
+        let cardDisplay = texts[card_status];
+        if (card_status === 'yes') {
+            cardDisplay += brandsText;
+        }
+
+        const optionsHtml = `
+            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-gray-600">
+                <span class="whitespace-nowrap">${texts.cash}: <strong class="font-medium text-gray-800">${texts[cash_status]}</strong></span>
+                <span class="whitespace-nowrap">${texts.card}: <strong class="font-medium text-gray-800">${cardDisplay}</strong></span>
+                <span class="whitespace-nowrap">${texts.ic}: <strong class="font-medium text-gray-800">${texts[ic_status]}</strong></span>
+            </div>
+        `;
+
+        if (lang === 'jp') {
+             return `<div class="mb-2 last:mb-0">
+                          <p class="font-semibold text-gray-800">会計方式</p>
+                          <p class="text-gray-600">以下の決済が可能です。</p>
+                          ${optionsHtml}
+                      </div>`;
+        }
+
+        const content = data.content[lang];
+        return `<div class="mb-2 last:mb-0">
+                    <p class="font-semibold text-gray-800">${content.title}</p>
+                    <p class="text-gray-600">${content.description}</p>
+                    ${optionsHtml}
+                </div>`;
+    }).join('');
+    
+    return `
+        <div class="payment-options-card">
+            <div class="card-body">${cardBodyHtml}</div>
+            ${createPictogramHtml(data.svgPath)}
+        </div>`;
+}
+
+function renderPreview() {
+    const allStandardCardKeys = getCheckedItemKeys(); 
+    const selectedLangs = getSelectedLangs();
+    const isPaymentChecked = document.getElementById('payment_options').checked;
+    
+    const cardGrid = document.getElementById('card-grid');
+    
+    if (allStandardCardKeys.length === 0 && !isPaymentChecked) {
+        document.getElementById('placeholder').style.display = 'block';
+        document.getElementById('preview-sheet').style.display = 'none';
+        document.getElementById('pagination-controls').classList.add('hidden');
+        return;
+    }
+    
+    document.getElementById('placeholder').style.display = 'none';
+    document.getElementById('preview-sheet').style.display = 'flex';
+
+    const cardsOnPage1 = isPaymentChecked ? (MAX_CELLS_PAGE1 - 2) : MAX_CELLS_PAGE1;
+    
+    let itemsForThisPage;
+    if (currentPage === 1) {
+        itemsForThisPage = allStandardCardKeys.slice(0, cardsOnPage1);
+    } else {
+        const previousItemsCount = cardsOnPage1 + (currentPage - 2) * MAX_CELLS_NORMAL;
+        const endIndex = previousItemsCount + MAX_CELLS_NORMAL;
+        itemsForThisPage = allStandardCardKeys.slice(previousItemsCount, endIndex);
+    }
+
+    cardGrid.innerHTML = ''; 
+
+    if (currentPage === 1) {
+        const welcomeLangs = ['jp', ...selectedLangs.filter(l => l !== 'jp')];
+        const welcomeHtml = welcomeLangs.map(lang => {
+            const data = welcomeMessageData[lang];
+            if (!data) return '';
+            return `<div class="mb-2"><h3 class="font-bold">${data.title}</h3><p>${data.description}</p></div>`;
+        }).join('');
+        cardGrid.innerHTML += `<div class="welcome-message-card">${welcomeHtml}</div>`;
+        
+        if (isPaymentChecked) {
+            cardGrid.innerHTML += renderPaymentCard();
+        }
+    }
+
+    const cardHtml = itemsForThisPage.map(key => {
+        const data = findItemByKey(key);
+        if (!data) return '';
+        
+        let cardBodyHtml = '';
+        const displayLangs = ['jp', ...selectedLangs.filter(l => l !== 'jp')];
+        
+        cardBodyHtml = displayLangs.map(lang => {
+            if (lang === 'jp') {
+                let jp_desc = data.jp_label.replace(/<[^>]*>/g, '');
+                 if (key === 'seat_time_limit_fixed' || key === 'seat_time_limit_busy') { 
+                      const timeValue = document.getElementById(`${key}-input`).value || '?';
+                      jp_desc = jp_desc.replace(/(\d*\.?\d*時間)/, `${timeValue}時間`);
+                 }
+                 return `<div class="mb-2 last:mb-0"><p class="font-semibold text-gray-800">${jp_desc}</p></div>`;
+            }
+            const content = data.content[lang];
+            if (!content) return '';
+            let description = content.description;
+            if (data.hasInput) {
+                const timeValue = document.getElementById(`${key}-input`).value || '?';
+                description = description.replace('{time}', timeValue);
+            }
+            return `<div class="mb-2 last:mb-0"><p class="font-semibold text-gray-800">${content.title}</p><p class="text-gray-600">${description}</p></div>`;
+        }).join('');
+
+    return `
+            <div class="card-item">
+                <div class="card-body">${cardBodyHtml}</div>
+                ${createPictogramHtml(data.svgPath)}
+            </div>`;
+    }).join('');
+
+    cardGrid.innerHTML += cardHtml;
+    updatePaginationControls();
+}
+
+function updatePaginationControls() {
+    const totalPages = getTotalPages();
+    const paginationControls = document.getElementById('pagination-controls');
+    if (totalPages <= 1) {
+        paginationControls.classList.add('hidden');
+        return;
+    }
+    paginationControls.classList.remove('hidden');
+    document.getElementById('page-info').textContent = `${currentPage} / ${totalPages} ページ`;
+    document.getElementById('prev-page').disabled = currentPage === 1;
+    document.getElementById('next-page').disabled = currentPage === totalPages;
+}
+
+function getTotalPages() {
+    const totalItems = getCheckedItemKeys().length; 
+    const isPaymentCard = document.getElementById('payment_options').checked;
+    
+    const normalCardsOnPage1 = isPaymentCard ? (MAX_CELLS_PAGE1 - 2) : MAX_CELLS_PAGE1;
+
+    if (totalItems <= normalCardsOnPage1) {
+        return 1;
+    } else {
+        const remainingItems = totalItems - normalCardsOnPage1;
+        return 1 + Math.ceil(remainingItems / MAX_CELLS_NORMAL);
+    }
+}
+
+// --- PDF生成 ---
+async function generatePDF() {
+    const loader = document.getElementById('loader');
+    loader.classList.remove('hidden');
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4'); 
+    
+    const totalPages = getTotalPages();
+    const originalPage = currentPage;
+    const previewSheet = document.getElementById('preview-sheet');
+
+    // 対策: 一時的に幅を固定して、ディスプレイの拡大率(DPIスケーリング)の影響を受けないようにする
+    const originalWidth = previewSheet.style.width;
+    previewSheet.style.width = '800px'; // A4縦横比を維持するための基準幅（高解像度で見える幅）
+
+    try {
+        for (let i = 1; i <= totalPages; i++) {
+            currentPage = i;
+            renderPreview();
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const images = previewSheet.querySelectorAll('img');
+            await Promise.all(Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => { 
+                    img.onload = resolve; 
+                    img.onerror = resolve; 
+                });
+            }));
+
+            const canvas = await html2canvas(previewSheet, {
+                scale: 3, 
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: null,
+                width: previewSheet.offsetWidth, // 固定した幅を使用
+                height: previewSheet.offsetHeight,
+                windowWidth: 800, // ウィンドウ幅も固定とみなしてレンダリングさせる
+                imageTimeout: 15000, 
+            });
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.95); 
+            const pdfWidth = pdf.internal.pageSize.getWidth(); 
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            if (i > 1) pdf.addPage();
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        }
+        
+        pdf.save('ishikawa_restaurant_notice.pdf');
+
+    } catch(error) {
+        console.error("PDF generation failed:", error);
+        alert("PDF生成エラー: 画像の読み込み等に失敗している可能性があります。");
+    } finally {
+        // 元に戻す
+        previewSheet.style.width = originalWidth;
+        currentPage = originalPage;
+        renderPreview();
+        if(!document.getElementById('survey-modal').classList.contains('hidden')) {
+            loader.classList.add('hidden');
+        }
+    }
+}
+
+// --- 補助関数 ---
+function findItemByKey(key) {
+    for (const section of Object.values(phrasesData)) {
+        if (section.items[key]) { return section.items[key]; }
+    }
+    return null;
+}
+function getSelectedLangs() { return Array.from(document.querySelectorAll('.lang-checkbox:checked')).map(cb => cb.value); }
+function getCheckedItemKeys() { 
+    return Array.from(document.querySelectorAll('.checkbox-item:checked'))
+            .map(checkbox => checkbox.id)
+            .filter(id => id !== 'payment_options');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    createChecklist();
+    setupEventListeners();
+    renderPreview();
+    
+    // 初期状態のクレジットカードブランド表示制御
+    const cardYesRadio = document.getElementById('payment_card_yes');
+    if (cardYesRadio && cardYesRadio.checked) {
+        document.getElementById('card_brands_container').classList.add('visible');
+    }
+});
+</script>
+
+</body>
+</html>
