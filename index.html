@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- 修正: Noto Sans TC (繁体字) を追加 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.js"></script>
@@ -16,15 +15,14 @@
     <!-- スタイル -->
     <style>
       body {
-        /* フォントの優先順位を整理 */
-        font-family: "Inter", "Noto Sans JP", "Noto Sans TC", "Noto Sans KR", sans-serif;
+        font-family: "Inter", "Noto Sans JP", sans-serif;
       }
 
-      /* 言語ごとのフォント指定（属性セレクタを用いて子要素にも強制適用） */
-      [lang="zh-TW"], [lang="zh-TW"] * { font-family: "Noto Sans TC", sans-serif !important; }
-      [lang="ko"], [lang="ko"] * { font-family: "Noto Sans KR", sans-serif !important; }
-      [lang="ja"], [lang="ja"] * { font-family: "Noto Sans JP", sans-serif !important; }
-      [lang="en"], [lang="en"] * { font-family: "Inter", "Noto Sans JP", sans-serif !important; }
+      /* 各ブロックに個別に適用し、フォントの混在や記号のズレを防ぐ */
+      .font-zh, .font-zh * { font-family: "Noto Sans TC", sans-serif !important; letter-spacing: normal !important; }
+      .font-ko, .font-ko * { font-family: "Noto Sans KR", sans-serif !important; letter-spacing: normal !important; }
+      .font-ja, .font-ja * { font-family: "Noto Sans JP", sans-serif !important; letter-spacing: normal !important; }
+      .font-en, .font-en * { font-family: "Inter", "Noto Sans JP", sans-serif !important; letter-spacing: normal !important; }
 
       #preview-sheet {
         background-color: #f4f3ec;
@@ -56,12 +54,11 @@
         color: #ffffff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         line-height: 1.2;
-        /* padding-top: 0.5rem; */
       }
 
       #card-grid {
         flex-grow: 1;
-        padding: 0.5rem 0.75rem 0.75rem;
+        padding: 0.5rem 0.75rem;
         display: grid;
         gap: 0.5rem 0.75rem;
         overflow: hidden;
@@ -72,19 +69,12 @@
       .welcome-message-card {
         grid-column: span 2 / span 2;
         grid-row: span 1 / span 1;
-        padding-inline: 0.75rem;
-      }
-      .welcome-message-card h3 {
-        font-size: 1.15rem;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
-        text-align: center;
+        padding-inline: 0.5rem;
       }
       .welcome-message-card p {
         font-size: 1.05rem;
-        line-height: 1.5; /* 修正: 重なり防止のため少し広げる */
+        line-height: 1.4;
         white-space: pre-wrap;
-        letter-spacing: 0.02em; /* 修正: 字間をわずかに広げる */
       }
 
       .payment-options-card {
@@ -92,7 +82,7 @@
         grid-row: span 1 / span 1;
         border: 2px solid #c5b37f;
         border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem 0.75rem;
+        padding: 0.5rem 0.75rem;
         background-color: rgba(255, 255, 255, 0.95);
         position: relative;
         display: flex;
@@ -100,7 +90,7 @@
       }
 
       #preview-footer {
-        padding: 0.25rem 1.5rem 0.75rem 1.5rem;
+        padding: 0.25rem 1.5rem 0.5rem 1.5rem;
         background-color: #363b5a;
         color: #ffffff;
         font-size: 0.6rem;
@@ -115,11 +105,11 @@
         line-height: 1.3;
       }
       #preview-footer .jp-text-sub {
-        color: #ffffff;
+        color: rgba(255, 255, 255, 0.8);
       }
 
       .footer-logo-container {
-        height: 5rem;
+        height: 4rem;
         margin-left: 1rem;
         flex-shrink: 0;
         display: flex;
@@ -127,14 +117,14 @@
       }
 
       .footer-logo-svg {
-        width: 4rem;
+        width: 3.5rem;
         overflow: visible;
       }
 
       .card-item {
         border: 2px solid #c5b37f;
         border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem 0.75rem;
+        padding: 0.5rem 0.75rem;
         position: relative;
         background-color: rgba(255, 255, 255, 0.95);
         display: flex;
@@ -146,23 +136,29 @@
         z-index: 10;
         flex-grow: 1;
         font-size: 1rem;
-        line-height: 1.5; /* 修正: 行間を広げて記号の重なりを防止 */
       }
+      
       .title-wrap {
         display: grid;
-        gap: 0.8rem;
-        grid-template-columns: 4rem 1fr;
-        /* align-items: center;
-         */
-        align-items: start;
-        /* margin-bottom: 0.5rem; */
+        gap: 0.75rem;
+        grid-template-columns: 3.5rem 1fr;
+        align-items: center;
+        margin-bottom: 0.4rem;
       }
 
       .title-wrap__title {
-        padding-top: 0.5rem;
         color: #363b5a;
-        line-height: 1.2 !important;
+        line-height: 1.3;
+        font-size: 1.15rem; /* サイズを抑えて重なりを防止 */
+        font-weight: 700;
+        margin: 0;
       }
+      
+      .description-text {
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+
       @media screen and (max-width: 767px) {
         .title-wrap {
           grid-template-columns: 1fr;
@@ -181,14 +177,10 @@
 
       .jp-text-sub {
         color: #6b7280;
-        font-size: 0.6rem;
+        font-size: 0.65rem;
         margin-top: 0.4rem;
-        line-height: 1.4; /* 修正 */
+        line-height: 1.3;
         font-weight: normal;
-      }
-
-      .welcome-message-card .jp-text-sub h3 {
-        font-size: inherit;
       }
 
       .header-jp-sub {
@@ -224,23 +216,19 @@
         margin-bottom: 1rem;
       }
       @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
       .pagination-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
       .time-input {
-        width: 4rem;
+        width: 3rem;
         text-align: center;
         border-radius: 0.25rem;
         border: 1px solid #d1d5db;
-        padding: 0.25rem;
+        padding: 0.1rem;
         margin: 0 0.25rem;
       }
       .time-input:disabled {
@@ -339,7 +327,7 @@
             <div id="preview-sheet">
               <header id="preview-header">
                 <div class="preview-header-icon"><img src="./header-icon.png" alt="" onerror="this.style.display='none'" /></div>
-                <h2 id="preview-title">Information for our Guests <span class="header-jp-sub">/ お客様へのお知らせ</span></h2>
+                <h2 id="preview-title" class="font-en">Information for our Guests <span class="header-jp-sub font-ja">/ お客様へのお知らせ</span></h2>
               </header>
               <main id="card-grid"></main>
 
@@ -434,8 +422,8 @@
           credit: "■ This information was created using services provided by Ishikawa Prefecture.",
         },
         zh: {
-          note: "■ 標示內容有時會有變動。如有任何疑問，請詢問店內人員。",
-          credit: "■ 本譯文來自於石川縣提供之服務。",
+          note: "■ 刊載內容可能會有所變更。如有任何疑問，請洽詢店內人員。",
+          credit: "■ 本指南是使用石川縣提供的服務所製作。",
         },
         ko: {
           note: "■ 게재 내용은 변경되는 경우가 있습니다. 불명확한 점이 있으시면 직원에게 문의해 주십시오.",
@@ -486,7 +474,7 @@
               svgPath: "./2.png",
               content: {
                 en: { title: 'O-Toshi (Appetizer Included in Seating Charge)', description: "This restaurant serves o-toshi, a small appetizer included as part of the seating charge. This is a common custom at izakaya restaurants in Japan." },
-                zh: { title: "關於開胃小菜", description: "我們將提供「開胃小菜」作為座位費用。「開胃小菜」是讓您等待上菜時享用的料理，屬於日本居酒屋文化常見的習慣。" },
+                zh: { title: "關於開胃小菜", description: "我們將提供「開胃小菜」作為座位費用。　　　　「開胃小菜」是讓您等待上菜時享用的料理，屬於日本居酒屋文化常見的習慣。" },
                 ko: { title: "오토시(자릿세 형식으로 제공되는 기본 안주)에 대하여", description: "자리 비용으로 “오토시(자릿세 형식으로 제공되는 기본 안주)”가 나옵니다. “오토시”는 본 요리를 드리기 전에 미리 나오는 안주로 일본 이자카야 문화에서는 일반적인 관습입니다." },
               },
             },
@@ -601,7 +589,7 @@
               svgPath: "./15.png",
               content: {
                 en: { title: "Seating Time Limit (Busy Periods)", description: "When we are particularly busy, we ask that guests please stay no longer than {time} hours." },
-                zh: { title: "用餐人數眾多時，座位使用時間的相關限制", description: "用餐人數眾多時将調整為{time}小時。" },
+                zh: { title: "用餐人數眾多時，座位使用時間的相關限制", description: "用餐人數眾多時將調整為{time}小時。" }, /* 將に修正 */
                 ko: { title: "혼잡한 경우의 자리 이용 시간의 제한에 대하여", description: "혼잡한 경우에는 시간제({time}시간)로 운영하는 경우가 있습니다." },
               },
             },
@@ -831,26 +819,26 @@
                 <span class="whitespace-nowrap">${texts.ic}: <strong class="font-medium text-gray-800">${texts[ic_status]}</strong></span>
             </div>
         `;
-            const langClass = `lang-${lang}`;
+            const langClass = lang === "zh" ? "font-zh" : lang === "ko" ? "font-ko" : "font-en";
+            const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
 
             if (lang === "jp") {
-              return `<div class="mb-1 last:mb-0 jp-text-sub lang-jp" lang="ja">
+              return `<div class="mb-1 last:mb-0 jp-text-sub font-ja" lang="ja">
                           <p>会計方式: 以下の決済が可能です。</p>
                           ${optionsHtml}
                       </div>`;
             }
 
-            // 修正: 英語・中国語・韓国語共通の処理
+            // 外国語ブロック（フォントとlang属性を正確に付与）
             const content = data.content[lang];
-            const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
             return `<div class="mb-1 last:mb-0 ${langClass}" lang="${langAttr}">
               <div class="title-wrap">
                 ${createPictogramHtml(data.svgPath)}
-              <p class="font-bold text-2xl title-wrap__title">${content.title}</p>
+                <p class="title-wrap__title">${content.title}</p>
               </div>
-                    <p class="text-gray-600">${content.description}</p>
-                    ${optionsHtml}
-                </div>`;
+              <p class="text-gray-600 description-text">${content.description}</p>
+              ${optionsHtml}
+            </div>`;
           })
           .join("");
 
@@ -877,14 +865,15 @@
         document.getElementById("placeholder").style.display = "none";
         document.getElementById("preview-sheet").style.display = "flex";
 
-        // シート全体の言語属性を設定
-        const sheetLangAttr = selectedLang === "zh" ? "zh-TW" : selectedLang === "ko" ? "ko" : "en";
-        document.getElementById("preview-sheet").setAttribute("lang", sheetLangAttr);
-
-        // ヘッダー更新
+        // ヘッダー更新 (フォントクラスを分離)
         const selectedHeader = headerTitleData[selectedLang];
         const jpHeader = headerTitleData["jp"];
-        document.getElementById("preview-title").innerHTML = `${selectedHeader} <span class="header-jp-sub" lang="ja">/ ${jpHeader}</span>`;
+        const headerLangClass = selectedLang === "zh" ? "font-zh" : selectedLang === "ko" ? "font-ko" : "font-en";
+        const headerLangAttr = selectedLang === "zh" ? "zh-TW" : selectedLang === "ko" ? "ko" : "en";
+        
+        document.getElementById("preview-title").className = headerLangClass;
+        document.getElementById("preview-title").setAttribute("lang", headerLangAttr);
+        document.getElementById("preview-title").innerHTML = `${selectedHeader} <span class="header-jp-sub font-ja" lang="ja">/ ${jpHeader}</span>`;
 
         const cardsOnPage1 = isPaymentChecked ? MAX_CELLS_PAGE1 - 2 : MAX_CELLS_PAGE1;
 
@@ -907,9 +896,9 @@
               if (!data) return "";
 
               if (lang === "jp") {
-                return `<div class="mb-2 jp-text-sub lang-jp" lang="ja"><span>${data.description}</span></div>`;
+                return `<div class="mb-2 jp-text-sub font-ja" lang="ja"><span>${data.description}</span></div>`;
               }
-              const langClass = `lang-${lang}`;
+              const langClass = lang === "zh" ? "font-zh" : lang === "ko" ? "font-ko" : "font-en";
               const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
               return `<div class="mb-2 ${langClass}" lang="${langAttr}"><p>${data.description}</p></div>`;
             })
@@ -931,35 +920,35 @@
 
             cardBodyHtml = displayLangs
               .map((lang) => {
-                const langClass = `lang-${lang}`;
                 if (lang === "jp") {
                   let jp_desc = data.jp_label.replace(/<[^>]*>/g, "");
                   if (key === "seat_time_limit_fixed" || key === "seat_time_limit_busy") {
                     const timeValue = document.getElementById(`${key}-input`).value || "?";
                     jp_desc = jp_desc.replace(/(\d*\.?\d*時間)/, `${timeValue}時間`);
                   }
-                  return `<div class="mb-1 last:mb-0 jp-text-sub lang-jp" lang="ja">${jp_desc}</div>`;
+                  return `<div class="mb-1 last:mb-0 jp-text-sub font-ja" lang="ja">${jp_desc}</div>`;
                 }
 
-                // 修正: 英語・中国語・韓国語共通の処理
+                // 外国語ブロック
                 const content = data.content[lang];
                 if (!content) return "";
                 let description = content.description;
                 if (data.hasInput) {
                   const timeValue = document.getElementById(`${key}-input`).value || "?";
                   description = description.replace("{time}", timeValue);
-                  // 韓国語の●の置換対応
                   if (lang === "ko") {
                     description = description.replace(/●/, timeValue);
                   }
                 }
+                const langClass = lang === "zh" ? "font-zh" : lang === "ko" ? "font-ko" : "font-en";
                 const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
                 return `<div class="mb-2 last:mb-0 ${langClass}" lang="${langAttr}">
                   <div class="title-wrap">
-                  ${createPictogramHtml(data.svgPath)}
-                  <p class="font-bold text-2xl title-wrap__title">${content.title}</p>
+                    ${createPictogramHtml(data.svgPath)}
+                    <p class="title-wrap__title">${content.title}</p>
                   </div>
-                  <p class="text-gray-600">${description}</p></div>`;
+                  <p class="text-gray-600 description-text">${description}</p>
+                </div>`;
               })
               .join("");
 
@@ -976,17 +965,22 @@
         const footerCredit = footerData[selectedLang].credit;
         const footerNoteJp = footerData["jp"].note;
         const footerCreditJp = footerData["jp"].credit;
-        const langClass = `lang-${selectedLang}`;
+        
+        const langClass = selectedLang === "zh" ? "font-zh" : selectedLang === "ko" ? "font-ko" : "font-en";
         const langAttr = selectedLang === "zh" ? "zh-TW" : selectedLang === "ko" ? "ko" : "en";
 
         footerContent.innerHTML = `
-        <div class="mb-2 ${langClass}" lang="${langAttr}">
+        <div class="mb-1 ${langClass}" lang="${langAttr}">
             <p class="text-sm">${footerNote}</p>
-            <p class="jp-text-sub lang-jp" lang="ja">${footerNoteJp}</p>
+        </div>
+        <div class="mb-2 font-ja" lang="ja">
+            <p class="jp-text-sub">${footerNoteJp}</p>
         </div>
         <div class="${langClass}" lang="${langAttr}">
             <p class="text-sm">${footerCredit}</p>
-            <p class="jp-text-sub lang-jp" lang="ja">${footerCreditJp}</p>
+        </div>
+        <div class="font-ja" lang="ja">
+            <p class="jp-text-sub">${footerCreditJp}</p>
         </div>
     `;
 
