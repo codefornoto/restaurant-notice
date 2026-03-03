@@ -8,15 +8,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet" />
+    <!-- 修正: Noto Sans TC (繁体字) を追加 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.js"></script>
 
     <!-- スタイル -->
     <style>
       body {
-        font-family: "Inter", "Noto Sans JP", "Noto Sans KR", sans-serif;
+        /* フォントの優先順位を整理 */
+        font-family: "Inter", "Noto Sans JP", "Noto Sans TC", "Noto Sans KR", sans-serif;
       }
+
+      /* 言語ごとのフォント指定（属性セレクタを用いて子要素にも強制適用） */
+      [lang="zh-TW"], [lang="zh-TW"] * { font-family: "Noto Sans TC", sans-serif !important; }
+      [lang="ko"], [lang="ko"] * { font-family: "Noto Sans KR", sans-serif !important; }
+      [lang="ja"], [lang="ja"] * { font-family: "Noto Sans JP", sans-serif !important; }
+      [lang="en"], [lang="en"] * { font-family: "Inter", "Noto Sans JP", sans-serif !important; }
 
       #preview-sheet {
         background-color: #f4f3ec;
@@ -35,6 +43,7 @@
         text-align: center;
         flex-shrink: 0;
         background: url(./header-bg.png);
+        background-color: #363b5a; /* 背景画像がない場合のフォールバック */
         display: grid;
         grid-template-columns: 3rem auto;
         align-items: start;
@@ -73,8 +82,9 @@
       }
       .welcome-message-card p {
         font-size: 1.05rem;
-        line-height: 1.35;
+        line-height: 1.5; /* 修正: 重なり防止のため少し広げる */
         white-space: pre-wrap;
+        letter-spacing: 0.02em; /* 修正: 字間をわずかに広げる */
       }
 
       .payment-options-card {
@@ -136,7 +146,7 @@
         z-index: 10;
         flex-grow: 1;
         font-size: 1rem;
-        line-height: 1.2;
+        line-height: 1.5; /* 修正: 行間を広げて記号の重なりを防止 */
       }
       .title-wrap {
         display: grid;
@@ -151,7 +161,7 @@
       .title-wrap__title {
         padding-top: 0.5rem;
         color: #363b5a;
-        line-height: 1 !important;
+        line-height: 1.2 !important;
       }
       @media screen and (max-width: 767px) {
         .title-wrap {
@@ -173,7 +183,7 @@
         color: #6b7280;
         font-size: 0.6rem;
         margin-top: 0.4rem;
-        line-height: 1.2;
+        line-height: 1.4; /* 修正 */
         font-weight: normal;
       }
 
@@ -328,7 +338,7 @@
           <div id="preview-sheet-wrapper">
             <div id="preview-sheet">
               <header id="preview-header">
-                <div class="preview-header-icon"><img src="./header-icon.png" alt="" /></div>
+                <div class="preview-header-icon"><img src="./header-icon.png" alt="" onerror="this.style.display='none'" /></div>
                 <h2 id="preview-title">Information for our Guests <span class="header-jp-sub">/ お客様へのお知らせ</span></h2>
               </header>
               <main id="card-grid"></main>
@@ -337,7 +347,7 @@
                 <div class="footer-text"></div>
 
                 <div class="footer-logo-container">
-                  <img src="./footer-icon.png" alt="" class="footer-logo-svg" />
+                  <img src="./footer-icon.png" alt="" class="footer-logo-svg" onerror="this.style.display='none'" />
                 </div>
               </footer>
             </div>
@@ -448,8 +458,7 @@
               content: {
                 en: { title: "Payment Methods", description: "We accept the following payment method(s). For details, please ask a member of our staff." },
                 zh: { title: "付款方式", description: "提供以下結帳方式。詳情請詢問店內人員。" },
-                // 修正: 構造変更
-                ko: { title: "지불 방법", description: "결제는 아래와 같은 방법으로 대응하고 있습니다.  상세 내용은 직원에게 문의해 주세요." },
+                ko: { title: "지불 방법", description: "결제는 아래와 같은 방법으로 대응하고 있습니다.  상세 내용은 직원에게 문의해 주세요." },
               },
               options_text: {
                 en: { yes: "Yes", no: "No", cash: "Cash", card: "Credit Cards", ic: "Transit IC Cards" },
@@ -464,7 +473,6 @@
               content: {
                 en: { title: "No Separate Payments", description: "We ask that you please pay for the entire party together in a single payment." },
                 zh: { title: "結帳僅限一次付清", description: "請以團體為單位結帳。" },
-                // 修正: 構造変更
                 ko: { title: "계산은 일시불만 가능", description: "계산은 더치패이가 아니라 한번에 지불하시도록 부탁드립니다." },
               },
             },
@@ -479,7 +487,6 @@
               content: {
                 en: { title: 'O-Toshi (Appetizer Included in Seating Charge)', description: "This restaurant serves o-toshi, a small appetizer included as part of the seating charge. This is a common custom at izakaya restaurants in Japan." },
                 zh: { title: "關於開胃小菜", description: "我們將提供「開胃小菜」作為座位費用。「開胃小菜」是讓您等待上菜時享用的料理，屬於日本居酒屋文化常見的習慣。" },
-                // 修正: 構造変更
                 ko: { title: "오토시(자릿세 형식으로 제공되는 기본 안주)에 대하여", description: "자리 비용으로 “오토시(자릿세 형식으로 제공되는 기본 안주)”가 나옵니다. “오토시”는 본 요리를 드리기 전에 미리 나오는 안주로 일본 이자카야 문화에서는 일반적인 관습입니다." },
               },
             },
@@ -489,7 +496,6 @@
               content: {
                 en: { title: "Seating Charge", description: "We have a seating charge." },
                 zh: { title: "關於座位費", description: "會收取座位費用。" },
-                // 修正: 構造変更
                 ko: { title: "자릿세에 대하여", description: "자릿세(서비스 요금)를 받고 있습니다." },
               },
             },
@@ -499,8 +505,7 @@
               content: {
                 en: { title: 'Market Price', description: "Some of our menu items are “market price,” due to prices that can vary from day to day for items such as fresh seafood. Please ask for today’s price if you are interested." },
                 zh: { title: "關於時價", description: "部分商品採用「時價」計價。請向店內人員詢價。採用「時價」的商品，會隨著鮮魚等貨物的進貨成本而波動。" },
-                // 修正: 構造変更
-                ko: { title: "시가에 대하여", description: "일부 상품은 “시가”입니다.  가격은 문의해주세요. “시가” 상품은 선어(신선한 생선) 등의 구입비 가격 변동에 따라 가격이 달라집니다." },
+                ko: { title: "시가에 대하여", description: "일부 상품은 “시가”입니다.  가격은 문의해주세요. “시가” 상품은 선어(신선한 생선) 등의 구입비 가격 변동에 따라 가격이 달라집니다." },
               },
             },
             dietary_restrictions: {
@@ -509,7 +514,6 @@
               content: {
                 en: { title: "Food Allergies and Other Dietary Restrictions", description: "Please let us know if you have any food allergies, or dietary restrictions (religious or otherwise), and we will try to accommodate them as much as we can." },
                 zh: { title: "關於飲食限制與過敏原對應", description: "因過敏、宗教、理念等原因而有飲食限制的客人，我們會在能力範圍內為您提供服務，請事先告知相關需求。" },
-                // 修正: 構造変更
                 ko: { title: "식사 제한 및 알레르기 대응에 대하여", description: "알레르기나 종교, 사상 등에 따라 식사에 제한이 있는 경우에는 가능한 범위 내에서만 대응이 가능하므로 사전에 미리 말씀해 주시기를 부탁드립니다." },
               },
             },
@@ -518,8 +522,7 @@
               svgPath: "./7.png",
               content: {
                 en: { title: "No Take-Out for Leftover Food", description: "We do not offer take-out for leftover food." },
-                zh: { title: "餐點請勿打包外帶", description: "請勿将吃剩的食物打包带走。" },
-                // 修正: 構造変更
+                zh: { title: "餐點請勿打包外帶", description: "請勿將吃剩的食物打包帶走。" }, /* 修正: 将を將に変更 */
                 ko: { title: "남은 음식은 포장하여 가져가실 수 없으므로 양해를 부탁드립니다.", description: "드시고 남은 음식은 포장하여 가져가실 수 없으므로 양해를 부탁드립니다." },
               },
             },
@@ -529,7 +532,6 @@
               content: {
                 en: { title: "Water", description: "Water is available, but as a paid menu item." },
                 zh: { title: "關於飲用水", description: "飲用水需付費。" },
-                // 修正: 構造変更
                 ko: { title: "물에 대하여", description: "물은 유료로 제공해 드립니다." },
               },
             },
@@ -539,7 +541,6 @@
               content: {
                 en: { title: "Minimum Order", description: "We ask that you please order at least one menu item per person." },
                 zh: { title: "關於最低消費", description: "每位客人至少需點一份飲料或餐點。" },
-                // 修正: 構造変更
                 ko: { title: "최소 주문 수에 대하여", description: "1인분 이상의 주문을 부탁드립니다." },
               },
             },
@@ -554,7 +555,6 @@
               content: {
                 en: { title: "Photography", description: "To ensure a comfortable atmosphere and a shared sense of privacy, please ask the staff for permission before taking any photos while you are here." },
                 zh: { title: "關於攝影", description: "為確保客人隱私及店內氛圍，如需在店內攝影請事先和店內工作人員確認。" },
-                // 修正: 構造変更
                 ko: { title: "사진 촬영에 대하여", description: "가게 내에서의 사진촬영은 프라이버시 보호와 분위기 유지를 위하여 사전에 직원에게 가능 여부를 문의해 주시기를 부탁드립니다." },
               },
             },
@@ -564,7 +564,6 @@
               content: {
                 en: { title: "No Outside Food or Drinks", description: "No outside food or drinks are allowed." },
                 zh: { title: "禁止攜帶外食", description: "禁止攜帶外食外飲。" },
-                // 修正: 構造変更
                 ko: { title: "음식 및 음료수는 외부에서 반입할 수 없습니다.", description: "음식 및 음료수를 외부에서 가지고 들어오실 수 없으므로 양해를 부탁드립니다." },
               },
             },
@@ -574,7 +573,6 @@
               content: {
                 en: { title: "Smoking Spaces", description: "Smoking is allowed only in designated locations." },
                 zh: { title: "關於吸菸空間", description: "請在指定場所抽菸。" },
-                // 修正: 構造変更
                 ko: { title: "흡연 공간에 대하여", description: "담배는 지정된 장소를 이용하시도록 부탁드립니다." },
               },
             },
@@ -584,7 +582,6 @@
               content: {
                 en: { title: "Non-Smoking Establishment", description: "All seats are non-smoking." },
                 zh: { title: "店內禁菸", description: "店內全面禁菸。" },
-                // 修正: 構造変更
                 ko: { title: "점포 안에서는 금연", description: "가게 내에서는 전 좌석 금연입니다." },
               },
             },
@@ -595,7 +592,6 @@
               content: {
                 en: { title: "Seating Time Limit", description: "We ask that guests please stay no longer than {time} hours." },
                 zh: { title: "關於座位的使用時間", description: "用餐時間為{time}小時。" },
-                // 修正: 構造変更
                 ko: { title: "자리 이용 시간에 대하여", description: "자리는 시간제({time}시간)로 운영되고 있습니다." },
               },
             },
@@ -606,7 +602,6 @@
               content: {
                 en: { title: "Seating Time Limit (Busy Periods)", description: "When we are particularly busy, we ask that guests please stay no longer than {time} hours." },
                 zh: { title: "用餐人數眾多時，座位使用時間的相關限制", description: "用餐人數眾多時将調整為{time}小時。" },
-                // 修正: 構造変更
                 ko: { title: "혼잡한 경우의 자리 이용 시간의 제한에 대하여", description: "혼잡한 경우에는 시간제({time}시간)로 운영하는 경우가 있습니다." },
               },
             },
@@ -621,7 +616,6 @@
               content: {
                 en: { title: "Bilingual Service May Not Be Available", description: "Our staff may not be able to communicate in any language other than Japanese. We appreciate your understanding." },
                 zh: { title: "關於語言溝通（僅提供日文服務）", description: "工作人員可能無法順利與您溝通。敬請見諒。" },
-                // 修正: 構造変更
                 ko: { title: "언어 대응에 대하여 (일본어 대응만 가능)", description: "직원의 언어 대응이 어려운 경우가 있습니다. 양해를 부탁드립니다." },
               },
             },
@@ -631,7 +625,6 @@
               content: {
                 en: { title: "Order and Service Delays", description: "Please note that, when we are particularly busy, it may take longer than usual to prepare your food, or for staff members to assist you." },
                 zh: { title: "關於料理、服務提供延遲事宜", description: "用餐人數眾多時，店員的服務及料理的提供可能需要稍加等候。" },
-                // 修正: 構造変更
                 ko: { title: "요리 및 서비스 제공이 늦어지는 경우에 대하여", description: "혼잡한 때에는 요리 제공이나 직원의 대응에 시간이 소요되는 경우가 있습니다." },
               },
             },
@@ -641,7 +634,6 @@
               content: {
                 en: { title: "Requesting Staff Attention", description: "If you need anything, please let a staff member know directly, or use the bell at a table." },
                 zh: { title: "關於呼叫工作人員", description: "如需協助請按下呼叫鈴或直接招呼店員。" },
-                // 修正: 構造変更
                 ko: { title: "직원 호출에 대하여", description: "용건이 있으신 경우에는 직접 부르시거나 또는 호출 벨 등을 눌러서 불러 주십시오." },
               },
             },
@@ -839,9 +831,10 @@
                 <span class="whitespace-nowrap">${texts.ic}: <strong class="font-medium text-gray-800">${texts[ic_status]}</strong></span>
             </div>
         `;
+            const langClass = `lang-${lang}`;
 
             if (lang === "jp") {
-              return `<div class="mb-1 last:mb-0 jp-text-sub">
+              return `<div class="mb-1 last:mb-0 jp-text-sub lang-jp" lang="ja">
                           <p>会計方式: 以下の決済が可能です。</p>
                           ${optionsHtml}
                       </div>`;
@@ -849,7 +842,8 @@
 
             // 修正: 英語・中国語・韓国語共通の処理
             const content = data.content[lang];
-            return `<div class="mb-1 last:mb-0">
+            const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
+            return `<div class="mb-1 last:mb-0 ${langClass}" lang="${langAttr}">
               <div class="title-wrap">
                 ${createPictogramHtml(data.svgPath)}
               <p class="font-bold text-2xl title-wrap__title">${content.title}</p>
@@ -883,10 +877,14 @@
         document.getElementById("placeholder").style.display = "none";
         document.getElementById("preview-sheet").style.display = "flex";
 
+        // シート全体の言語属性を設定
+        const sheetLangAttr = selectedLang === "zh" ? "zh-TW" : selectedLang === "ko" ? "ko" : "en";
+        document.getElementById("preview-sheet").setAttribute("lang", sheetLangAttr);
+
         // ヘッダー更新
         const selectedHeader = headerTitleData[selectedLang];
         const jpHeader = headerTitleData["jp"];
-        document.getElementById("preview-title").innerHTML = `${selectedHeader} <span class="header-jp-sub">/ ${jpHeader}</span>`;
+        document.getElementById("preview-title").innerHTML = `${selectedHeader} <span class="header-jp-sub" lang="ja">/ ${jpHeader}</span>`;
 
         const cardsOnPage1 = isPaymentChecked ? MAX_CELLS_PAGE1 - 2 : MAX_CELLS_PAGE1;
 
@@ -909,9 +907,11 @@
               if (!data) return "";
 
               if (lang === "jp") {
-                return `<div class="mb-2 jp-text-sub"><span>${data.description}</span></div>`;
+                return `<div class="mb-2 jp-text-sub lang-jp" lang="ja"><span>${data.description}</span></div>`;
               }
-              return `<div class="mb-2"><p>${data.description}</p></div>`;
+              const langClass = `lang-${lang}`;
+              const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
+              return `<div class="mb-2 ${langClass}" lang="${langAttr}"><p>${data.description}</p></div>`;
             })
             .join("");
           cardGrid.innerHTML += `<div class="welcome-message-card">${welcomeHtml}</div>`;
@@ -931,13 +931,14 @@
 
             cardBodyHtml = displayLangs
               .map((lang) => {
+                const langClass = `lang-${lang}`;
                 if (lang === "jp") {
                   let jp_desc = data.jp_label.replace(/<[^>]*>/g, "");
                   if (key === "seat_time_limit_fixed" || key === "seat_time_limit_busy") {
                     const timeValue = document.getElementById(`${key}-input`).value || "?";
                     jp_desc = jp_desc.replace(/(\d*\.?\d*時間)/, `${timeValue}時間`);
                   }
-                  return `<div class="mb-1 last:mb-0 jp-text-sub">${jp_desc}</div>`;
+                  return `<div class="mb-1 last:mb-0 jp-text-sub lang-jp" lang="ja">${jp_desc}</div>`;
                 }
 
                 // 修正: 英語・中国語・韓国語共通の処理
@@ -952,7 +953,8 @@
                     description = description.replace(/●/, timeValue);
                   }
                 }
-                return `<div class="mb-2 last:mb-0">
+                const langAttr = lang === "zh" ? "zh-TW" : lang === "ko" ? "ko" : "en";
+                return `<div class="mb-2 last:mb-0 ${langClass}" lang="${langAttr}">
                   <div class="title-wrap">
                   ${createPictogramHtml(data.svgPath)}
                   <p class="font-bold text-2xl title-wrap__title">${content.title}</p>
@@ -974,15 +976,17 @@
         const footerCredit = footerData[selectedLang].credit;
         const footerNoteJp = footerData["jp"].note;
         const footerCreditJp = footerData["jp"].credit;
+        const langClass = `lang-${selectedLang}`;
+        const langAttr = selectedLang === "zh" ? "zh-TW" : selectedLang === "ko" ? "ko" : "en";
 
         footerContent.innerHTML = `
-        <div class="mb-2">
+        <div class="mb-2 ${langClass}" lang="${langAttr}">
             <p class="text-sm">${footerNote}</p>
-            <p class="jp-text-sub">${footerNoteJp}</p>
+            <p class="jp-text-sub lang-jp" lang="ja">${footerNoteJp}</p>
         </div>
-        <div>
+        <div class="${langClass}" lang="${langAttr}">
             <p class="text-sm">${footerCredit}</p>
-            <p class="jp-text-sub">${footerCreditJp}</p>
+            <p class="jp-text-sub lang-jp" lang="ja">${footerCreditJp}</p>
         </div>
     `;
 
